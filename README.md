@@ -1,6 +1,6 @@
 # EverySync 文件备份工具
 
-EverySync 是一个基于 Python 的文件备份工具，支持增量备份和完整备份。
+EverySync 是一个结合 Everything API，实现快速文件比对和备份的工具，支持增量备份和完整备份。
 
 ## 功能特点
 
