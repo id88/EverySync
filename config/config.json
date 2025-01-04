@@ -1,0 +1,23 @@
+{
+  "backup": {
+    "sources": {
+      "D:": "G:\\D\\",
+      "E:": "G:\\E\\",
+      "F:": "G:\\F\\"
+    },
+    "exclude": {
+      "files": ["*.tmp", "*.log", "pagefile.sys"],
+      "directories": ["D:\\Temp", "E:\\Cache"]
+    },
+    "file_size_limit_mb": 200,
+    "incremental_days": 7
+  },
+  "log": {
+    "debug_log_path": "logs\\debug.log",
+    "run_log_path": "logs\\run.log",
+    "lost_files_dir": "logs\\lost"
+  },
+  "verification": {
+    "sample_size": 10
+  }
+} 
