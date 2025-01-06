@@ -1,0 +1,236 @@
+# EverySync 文件备份工具
+
+EverySync 是一个结合 Everything API 实现快速文件比对和备份的工具，支持增量备份和完整备份。
+
+## 功能特点
+
+- 支持多个驱动器和目录的备份
+- 支持增量备份和完整备份
+- 自动验证备份文件的完整性
+- 详细的日志记录
+- 文件过滤和排除规则
+- 实时显示备份进度
+- 自动处理路径过长问题
+
+## 备份逻辑
+
+### 1. 配置检查
+- 从 config.json 加载配置信息
+- 验证备份源和目标路径
+- 检查驱动器可用性
+
+### 2. 文件扫描
+- 使用 Everything SDK 或文件系统遍历获取文件列表
+- 根据配置的增量备份天数筛选文件：
+  ```python
+  if config['backup']['incremental_days'] > 0:
+      cutoff_time = datetime.now() - timedelta(days=incremental_days)
+      files = [f for f in files if file_modified_time > cutoff_time]
+  ```
+- 过滤系统文件和特殊目录
+- 处理路径长度超过限制的文件
+
+### 3. 文件备份
+- 对每个文件执行以下操作：
+  1. 检查文件是否需要更新（比较大小和修改时间）
+  2. 创建目标目录结构
+  3. 复制文件并验证完整性（MD5校验）
+  4. 记录备份状态和日志
+
+### 4. 备份验证
+- 随机抽样验证备份文件
+- 比较源文件和备份文件的：
+  - 文件大小
+  - MD5值
+  - 修改时间
+
+### 5. 错误处理
+- 跳过无法访问的文件
+- 记录错误信息
+- 统计成功、失败和跳过的文件数
+
+## 配置说明
+
+配置文件 (config.json) 示例：
+```json
+{
+    "backup": {
+        "sources": {
+            "D:": "G:\\D",
+            "E:": "G:\\E"
+        },
+        "exclude_patterns": {
+            "directories": [
+                "node_modules",
+                ".git"
+            ],
+            "files": [
+                "*.tmp",
+                "*.log"
+            ]
+        },
+        "file_size_limit": 100,
+        "incremental_days": 7,
+        "verification_sample_size": 10
+    }
+}
+```
+
+- `sources`: 备份源和目标路径映射
+- `exclude_patterns`: 排除规则
+- `file_size_limit`: 单个文件大小限制（MB）
+- `incremental_days`: 增量备份天数（0表示完整备份）
+- `verification_sample_size`: 验证时的抽样数量
+
+## 使用方法
+
+1. 编辑 config.json 配置文件
+2. 运行 run.bat 或执行 `python src/main.py`
+3. 查看控制台输出和日志文件了解备份状态
+
+## 日志文件
+
+- debug.log: 详细的调试信息
+- run.log: 运行时的主要操作记录
+
+## 注意事项
+
+1. 首次运行建议进行完整备份（incremental_days = 0）
+2. 定期检查日志文件了解备份状态
+3. 建议定期验证备份文件的完整性
+4. 路径长度超过240字符的文件将被跳过
+5. 系统文件和特殊目录会被自动排除 
+
+
+
+## 性能优化建议
+
+### 1. 利用 Everything 的 MFT 读取能力
+
+Everything 通过直接读取 NTFS 的 Master File Table (MFT) 来实现快速文件搜索。我们可以利用这一特性来优化文件扫描过程：
+
+1. **优化搜索查询**：
+   - 使用 Everything 的高级搜索语法来快速定位需要备份的文件。
+   - 示例代码：
+     ```python
+     def get_files_from_everything(path: str, days: int = 7) -> List[dict]:
+         everything = Everything()
+         query = f'path:"{path}\\" dm:"{days}days"'  # 最近N天修改的文件
+         return everything.search(query)
+     ```
+
+2. **高级搜索语法优化**：
+   - 使用日期过滤：`dm:"7days"`（最近7天修改）
+   - 使用大小过滤：`size:>100mb`
+   - 使用路径过滤：`path:"D:\Project\" !path:".git\"`
+   - 使用文件属性：`attrib:!system !hidden`（排除系统和隐藏文件）
+   - 使用正则表达式：`regex:.*\.txt$`（特定文件类型）
+
+3. **实时监控文件变化**：
+   - 利用 Everything 的 IPC 机制获取文件变更通知。
+   - 实时更新本地数据库，减少全盘扫描的需求。
+
+### 2. 建立本地文件索引
+
+为了避免每次都进行全盘扫描，可以建立一个本地数据库（如 SQLite）来存储文件信息：
+
+1. **数据库结构**：
+   - 存储文件路径、大小、修改时间、MD5值、最后备份时间和最后检查时间。
+   - 示例 SQL 语句：
+     ```sql
+     CREATE TABLE files (
+         path TEXT PRIMARY KEY,
+         size INTEGER,
+         modified_time INTEGER,
+         md5 TEXT,
+         last_backup_time INTEGER,
+         last_check_time INTEGER
+     );
+     ```
+    - **last_backup_time**：
+        - 记录文件最后一次被成功备份的时间
+        - 用于增量备份时判断文件是否需要备份
+        - 当文件被成功备份后更新此时间戳
+    - **last_check_time**：
+        - 记录文件最后一次被检查（比对）的时间
+        - 用于优化文件比对过程，避免重复检查未变化的文件
+        - 即使文件没有被备份，只要进行了比对，就会更新此时间戳
+
+
+2. **增量更新策略**：
+   
+   - 首次运行时建立完整索引。
+   - 后续运行只扫描修改时间晚于上次备份的文件。
+   - 定期（如每月）进行一次全量索引更新。
+   
+3. **分离索引更新和备份操作**：
+   - 后台任务定期更新文件索引。
+   - 备份时直接使用索引数据。
+   - 可以通过文件系统事件监控（如 watchdog）实时更新索引。
+
+### 3. 并行处理优化
+
+1. **多线程文件复制**：
+   - 使用多线程来同时复制多个文件，提高备份速度。
+   - 示例代码：
+     ```python
+     from concurrent.futures import ThreadPoolExecutor
+     
+     def parallel_backup(files: List[dict], max_workers: int = 4):
+         with ThreadPoolExecutor(max_workers=max_workers) as executor:
+             futures = [executor.submit(backup_file, f) for f in files]
+     ```
+
+2. **分块处理大文件**：
+   - 将大文件分块并行复制。
+   - 使用多线程计算MD5值。
+   - 支持断点续传。
+
+3. **优先级队列**：
+   - 小文件优先处理。
+   - 最近修改的文件优先。
+   - 重要目录优先。
+
+### 4. 其他优化建议
+
+1. **缓存策略**：
+   - 缓存文件MD5值。
+   - 缓存目录结构。
+   - 使用内存映射文件处理大文件。
+
+2. **预处理优化**：
+   - 预先创建目录结构。
+   - 批量检查文件可访问性。
+   - 提前计算空间需求。
+
+3. **IO优化**：
+   - 使用更大的缓冲区。
+   - 合并小文件操作。
+   - 使用异步IO。
+
+4. **存储优化**：
+   - 压缩备份文件。
+   - 删除重复文件。
+   - 智能处理符号链接。
+
+## 实现路线图
+
+1. 第一阶段：基础功能
+   - [x] 基本的文件复制和验证
+   - [x] 增量备份支持
+   - [x] 日志记录
+
+2. 第二阶段：性能优化
+   - [ ] 实现本地索引数据库
+   - [ ] Everything 集成优化
+   - [ ] 多线程支持
+
+3. 第三阶段：高级特性
+   - [ ] 实时文件监控
+   - [ ] 断点续传
+   - [ ] 重复文件处理
+
+4. 第四阶段：用户体验
+   - [ ] 图形界面
+   - [ ] 备份计划管理
+   - [ ] 状态监控和报告 
