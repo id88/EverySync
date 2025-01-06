@@ -1,0 +1,17 @@
+everysync/
+├── config/
+│   └── config.json         # 配置文件
+├── logs/                   # 日志目录
+├── sdk/                    # Everything SDK
+│   └── dll/
+│       └── Everything64.dll
+├── src/
+│   ├── __init__.py
+│   ├── main.py            # 主程序入口
+│   ├── config.py          # 配置管理
+│   ├── backup.py          # 备份核心逻辑
+│   ├── file_utils.py      # 文件操作工具
+│   ├── everything.py      # Everything API 封装
+│   ├── logger.py          # 日志管理
+│   └── drive_monitor.py   # 驱动器监控
+└── README.md              # 项目说明文档 
