@@ -1,7 +1,10 @@
 everysync/
 ├── config/
-│   └── config.json         # 配置文件
+│   ├── config.json         # 配置文件
+│   └── ignore.txt          # 排除规则配置文件
 ├── logs/                   # 日志目录
+│   ├── debug.log          # 调试日志
+│   └── run.log            # 运行日志
 ├── sdk/                    # Everything SDK
 │   └── dll/
 │       └── Everything64.dll
@@ -12,6 +15,13 @@ everysync/
 │   ├── backup.py          # 备份核心逻辑
 │   ├── file_utils.py      # 文件操作工具
 │   ├── everything.py      # Everything API 封装
+│   ├── ignore_rules.py    # 排除规则管理
 │   ├── logger.py          # 日志管理
-│   └── drive_monitor.py   # 驱动器监控
-└── README.md              # 项目说明文档 
+│   ├── drive_monitor.py   # 驱动器监控
+│   ├── test_backup.py     # 备份功能测试
+│   ├── test_drive_monitor.py  # 驱动器监控测试
+│   ├── test_everything.py     # Everything API 测试
+│   └── test_file_utils.py     # 文件工具测试
+├── LICENSE                 # 许可证文件
+├── README.md              # 项目说明文档
+└── run.bat                # 运行脚本 

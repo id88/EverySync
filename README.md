@@ -8,7 +8,7 @@ EverySync 是一个结合 Everything API 实现快速文件比对和备份的工
 - 支持增量备份和完整备份
 - 自动验证备份文件的完整性
 - 详细的日志记录
-- 文件过滤和排除规则
+- 灵活的文件排除规则配置
 - 实时显示备份进度
 - 自动处理路径过长问题
 
@@ -16,19 +16,16 @@ EverySync 是一个结合 Everything API 实现快速文件比对和备份的工
 
 ### 1. 配置检查
 - 从 config.json 加载配置信息
+- 从 ignore.txt 加载排除规则
 - 验证备份源和目标路径
 - 检查驱动器可用性
 
 ### 2. 文件扫描
-- 使用 Everything SDK 或文件系统遍历获取文件列表
-- 根据配置的增量备份天数筛选文件：
-  ```python
-  if config['backup']['incremental_days'] > 0:
-      cutoff_time = datetime.now() - timedelta(days=incremental_days)
-      files = [f for f in files if file_modified_time > cutoff_time]
-  ```
-- 过滤系统文件和特殊目录
+- 优先使用 Everything SDK 获取文件列表
+- 根据配置的增量备份天数筛选文件
+- 应用 ignore.txt 中的排除规则
 - 处理路径长度超过限制的文件
+- 在 Everything 不可用时回退到文件系统遍历
 
 ### 3. 文件备份
 - 对每个文件执行以下操作：
@@ -37,21 +34,14 @@ EverySync 是一个结合 Everything API 实现快速文件比对和备份的工
   3. 复制文件并验证完整性（MD5校验）
   4. 记录备份状态和日志
 
-### 4. 备份验证
-- 随机抽样验证备份文件
-- 比较源文件和备份文件的：
-  - 文件大小
-  - MD5值
-  - 修改时间
-
-### 5. 错误处理
+### 4. 错误处理
 - 跳过无法访问的文件
 - 记录错误信息
 - 统计成功、失败和跳过的文件数
 
 ## 配置说明
 
-配置文件 (config.json) 示例：
+### 配置文件 (config.json)
 ```json
 {
     "backup": {
@@ -59,34 +49,40 @@ EverySync 是一个结合 Everything API 实现快速文件比对和备份的工
             "D:": "G:\\D",
             "E:": "G:\\E"
         },
-        "exclude_patterns": {
-            "directories": [
-                "node_modules",
-                ".git"
-            ],
-            "files": [
-                "*.tmp",
-                "*.log"
-            ]
-        },
-        "file_size_limit": 100,
-        "incremental_days": 7,
-        "verification_sample_size": 10
+        "file_size_limit_mb": 100,
+        "incremental_days": 7
+    },
+    "log": {
+        "debug_log_path": "logs\\debug.log",
+        "run_log_path": "logs\\run.log",
+        "trace_enabled": false
     }
 }
 ```
 
-- `sources`: 备份源和目标路径映射
-- `exclude_patterns`: 排除规则
-- `file_size_limit`: 单个文件大小限制（MB）
-- `incremental_days`: 增量备份天数（0表示完整备份）
-- `verification_sample_size`: 验证时的抽样数量
+### 排除规则 (ignore.txt)
+```text
+# 系统文件和目录
+$RECYCLE.BIN
+System Volume Information
+pagefile.sys
+
+# 开发相关
+.git
+.svn
+node_modules
+
+# 临时文件
+*.tmp
+*.log
+```
 
 ## 使用方法
 
-1. 编辑 config.json 配置文件
-2. 运行 run.bat 或执行 `python src/main.py`
-3. 查看控制台输出和日志文件了解备份状态
+1. 编辑 config.json 配置备份源和目标路径
+2. 编辑 ignore.txt 配置排除规则
+3. 运行 run.bat 或执行 `python src/main.py`
+4. 查看控制台输出和日志文件了解备份状态
 
 ## 日志文件
 
@@ -97,11 +93,14 @@ EverySync 是一个结合 Everything API 实现快速文件比对和备份的工
 
 1. 首次运行建议进行完整备份（incremental_days = 0）
 2. 定期检查日志文件了解备份状态
-3. 建议定期验证备份文件的完整性
-4. 路径长度超过240字符的文件将被跳过
-5. 系统文件和特殊目录会被自动排除 
+3. 路径长度超过240字符的文件将被跳过
+4. 确保 Everything 搜索工具已安装并运行
 
+## 依赖项
 
+- Python 3.6+
+- Everything 搜索工具
+- Windows 操作系统
 
 ## 性能优化建议
 
@@ -217,18 +216,19 @@ Everything 通过直接读取 NTFS 的 Master File Table (MFT) 来实现快速�
 
 1. 第一阶段：基础功能
    - [x] 基本的文件复制和验证
-   - [x] 增量备份支持
+   - [x] 增量备份和全量备份支持
    - [x] 日志记录
+   - [x] Everything API 集成
+   - [x] 排除规则支持
 
 2. 第二阶段：性能优化
-   - [ ] 实现本地索引数据库
-   - [ ] Everything 集成优化
-   - [ ] 多线程支持
+   - [ ] 并行文件复制
+   - [ ] 大文件分块处理
+   - [ ] 断点续传支持
+   - [ ] 重复文件处理
 
 3. 第三阶段：高级特性
    - [ ] 实时文件监控
-   - [ ] 断点续传
-   - [ ] 重复文件处理
 
 4. 第四阶段：用户体验
    - [ ] 图形界面
