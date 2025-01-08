@@ -48,7 +48,7 @@ def test_everything():
 
         # 测试3: 搜索最近修改的文件
         print("\n测试3: 搜索最近一天修改的txt文件（最多显示3个）")
-        recent_files = everything.search("ext:txt modified:today", max_results=3)
+        recent_files = everything.search("ext:txt dm:today", max_results=3)
         
         if recent_files:
             for i, file in enumerate(recent_files):

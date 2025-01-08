@@ -1,0 +1,29 @@
+# 系统文件和目录
+$RECYCLE.BIN\
+System Volume Information\
+pagefile.sys
+hiberfil.sys
+swapfile.sys
+
+# 开发相关
+.git\
+.svn\
+node_modules\
+.idea\
+.vscode\
+__pycache__\
+
+
+# 临时文件
+*.tmp
+*.temp
+*.log
+*.bak
+
+# 其他
+D:\wechat_files\
+D:\GoLangDir
+D:\GOPATH
+D:\nodejs
+D:\VisualStudio
+D:\Anaconda\

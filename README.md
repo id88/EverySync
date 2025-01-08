@@ -115,16 +115,16 @@ Everything 通过直接读取 NTFS 的 Master File Table (MFT) 来实现快速�
      ```python
      def get_files_from_everything(path: str, days: int = 7) -> List[dict]:
          everything = Everything()
-         query = f'path:"{path}\\" dm:"{days}days"'  # 最近N天修改的文件
+         query = f'path:{path} dm:last{days}days'  # 最近N天修改的文件
          return everything.search(query)
      ```
 
 2. **高级搜索语法优化**：
-   - 使用日期过滤：`dm:"7days"`（最近7天修改）
+   - 使用日期过滤：`dm:last7days` 或 `dm:prev7days` 或 `dm:past7days`（最近7天修改）
    - 使用大小过滤：`size:>100mb`
    - 使用路径过滤：`path:"D:\Project\" !path:".git\"`
-   - 使用文件属性：`attrib:!system !hidden`（排除系统和隐藏文件）
-   - 使用正则表达式：`regex:.*\.txt$`（特定文件类型）
+   - 使用文件属性：`!attrib:S !attrib:H`（排除系统和隐藏文件）
+   - 使用特定文件类型：`ext:txt`
 
 3. **实时监控文件变化**：
    - 利用 Everything 的 IPC 机制获取文件变更通知。

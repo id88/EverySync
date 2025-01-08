@@ -7,10 +7,6 @@ class Config:
     DEFAULT_CONFIG = {
         'backup': {
             'sources': {},  # 备份源和目标路径映射
-            'exclude_patterns': {  # 排除规则
-                'directories': [],  # 要排除的目录
-                'files': []  # 要排除的文件
-            },
             'file_size_limit_mb': 100,  # 文件大小限制（MB）
             'incremental_days': 0,  # 增量备份天数，0表示完整备份
             'verification_sample_size': 2  # 验证时的样本大小
@@ -68,23 +64,6 @@ class Config:
     def get_backup_sources(self) -> Dict[str, str]:
         """获取备份源和目标路径映射"""
         return self.config['backup']['sources']
-
-    def get_exclude_patterns(self) -> Dict[str, list]:
-        """获取排除规则"""
-        try:
-            # 从配置文件中获取排除规则
-            exclude = self.config['backup'].get('exclude', {})
-            return {
-                'directories': exclude.get('directories', []),
-                'files': exclude.get('files', [])
-            }
-        except Exception as e:
-            logging.error(f"获取排除规则失败: {str(e)}", exc_info=True)
-            # 返回默认值
-            return {
-                'directories': [],
-                'files': []
-            }
 
     def get_file_size_limit(self) -> int:
         """获取文件大小限制（MB）"""

@@ -138,7 +138,7 @@ class Everything:
         # 需要减去11644473600秒（1601年到1970年的秒数）
         return int((windows_time / 10000000) - 11644473600)
 
-    def search(self, query: str, max_results: int = 1000, timeout: int = 30) -> List[dict]:
+    def search(self, query: str, max_results: int = 100, timeout: int = 30) -> List[dict]:
         """执行搜索并返回结果"""
         try:
             logging.debug(f"开始 Everything 搜索，查询: {query}")
@@ -205,7 +205,7 @@ class Everything:
                     
                     if path_length > 0:
                         file_path = path_buffer.value
-                        logging.debug(f"处理搜索结果 {i}: {file_path}")
+                        # logging.debug(f"处理搜索结果 {i}: {file_path}")
                         
                         if os.path.exists(file_path):
                             if os.path.isfile(file_path):
@@ -218,7 +218,7 @@ class Everything:
                                         'size': file_size,
                                         'modified_time': modified_time
                                     })
-                                    logging.debug(f"添加文件: {file_path}, 大小: {file_size}, 修改时间: {modified_time}")
+                                    # logging.debug(f"添加文件: {file_path}, 大小: {file_size}, 修改时间: {modified_time}")
                                 except (OSError, IOError) as e:
                                     logging.warning(f"无法获取文件信息 {file_path}: {str(e)}")
                                     continue
@@ -268,21 +268,42 @@ class Everything:
         try:
             logging.debug("开始检查 Everything 可用性...")
             
-            # 检查服务是否运行
-            logging.debug("检查 Everything 数据库状态...")
-            if not self.everything_dll.Everything_IsDBLoaded():
-                logging.debug("Everything 数据库未加载")
-                return False
+            # 等待数据库加载，最多等待15秒
+            start_time = time.time()
+            timeout = 15  # 15秒超时
             
-            # 检查是否可以执行搜索
-            try:
-                logging.debug("尝试执行测试搜索...")
+            while True:
+                # 检查数据库状态
+                logging.debug("检查 Everything 数据库状态...")
+                if self.everything_dll.Everything_IsDBLoaded():
+                    logging.debug("Everything 数据库已加载完成")
+                    break
+                    
+                # 检查是否超时
+                if time.time() - start_time > timeout:
+                    error_code = self.everything_dll.Everything_GetLastError()
+                    error_message = {
+                        self.EVERYTHING_OK: "数据库正在加载中",
+                        self.EVERYTHING_ERROR_IPC: "Everything 搜索客户端未在后台运行",
+                        self.EVERYTHING_ERROR_MEMORY: "内存分配失败",
+                        self.EVERYTHING_ERROR_REGISTERCLASSEX: "注册窗口类失败",
+                        self.EVERYTHING_ERROR_CREATEWINDOW: "创建窗口失败",
+                        self.EVERYTHING_ERROR_CREATETHREAD: "创建线程失败",
+                        self.EVERYTHING_ERROR_INVALIDINDEX: "无效的索引",
+                        self.EVERYTHING_ERROR_INVALIDCALL: "无效的调用"
+                    }.get(error_code, f"未知错误 (代码: {error_code})")
+                    
+                    logging.debug(f"Everything 数据库加载超时: {error_message}")
+                    return False
                 
+                # 等待1s后重试
+                time.sleep(1)
+                logging.debug("等待 Everything 数据库加载...")
+            
+            # 执行测试搜索
+            try:
                 # 重置搜索状态
                 self.everything_dll.Everything_Reset()
-                
-                # 使用正确的函数名 Everything_SetSearchW
-                self.everything_dll.Everything_SetSearchW("")
                 logging.debug("设置搜索字符串完成")
                 
                 # 设置请求标志（最小化请求数据）
@@ -296,9 +317,6 @@ class Everything:
                     if self.everything_dll.Everything_QueryW(True):
                         break
                         
-                    error_code = self.everything_dll.Everything_GetLastError()
-                    logging.debug(f"搜索尝试中，错误代码: {error_code}")
-                    
                     if time.time() - start_time > 5:  # 5秒超时
                         logging.debug("搜索测试超时")
                         return False

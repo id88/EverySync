@@ -16,25 +16,41 @@ class Logger:
         log_dir = "logs"
         os.makedirs(log_dir, exist_ok=True)
 
-        # 配置根日志记录器
-        logging.basicConfig(
-            level=logging.DEBUG,
-            format='%(asctime)s - %(levelname)s - %(message)s',
-            handlers=[
-                # 调试日志文件处理器
-                logging.FileHandler(
-                    os.path.join(log_dir, "debug.log"),
-                    encoding='utf-8'
-                ),
-                # 运行日志文件处理器
-                logging.FileHandler(
-                    os.path.join(log_dir, "run.log"),
-                    encoding='utf-8'
-                ),
-                # 控制台处理器
-                logging.StreamHandler()
-            ]
+        # 创建根日志记录器
+        root_logger = logging.getLogger()
+        root_logger.setLevel(logging.DEBUG)
+        
+        # 设置日志格式
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        
+        # 调试日志文件处理器 (DEBUG 及以上级别)
+        debug_handler = logging.FileHandler(
+            os.path.join(log_dir, "debug.log"),
+            encoding='utf-8'
         )
+        debug_handler.setLevel(logging.DEBUG)
+        debug_handler.setFormatter(formatter)
+        
+        # 运行日志文件处理器 (INFO 及以上级别)
+        run_handler = logging.FileHandler(
+            os.path.join(log_dir, "run.log"),
+            encoding='utf-8'
+        )
+        run_handler.setLevel(logging.INFO)
+        run_handler.setFormatter(formatter)
+        
+        # 控制台处理器 (INFO 及以上级别)
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+        console_handler.setFormatter(formatter)
+        
+        # 清除现有的处理器
+        root_logger.handlers.clear()
+        
+        # 添加处理器到根日志记录器
+        root_logger.addHandler(debug_handler)
+        root_logger.addHandler(run_handler)
+        root_logger.addHandler(console_handler)
 
     def log_backup(self, source: str, dest: str, status: str = "开始"):
         """记录备份操作"""

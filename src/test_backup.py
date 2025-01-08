@@ -70,13 +70,27 @@ def safe_remove_dir(dir_path: str):
     shutil.rmtree(dir_path, onerror=handle_error)
 
 def test_backup():
+    """测试备份功能"""
     setup_logging()
     
-    # 创建测试目录和文件（使用绝对路径）
-    test_source = os.path.abspath("test_source")
-    test_dest = os.path.abspath("test_backup")
+    # 创建测试目录
+    test_source = "test_source"
+    test_dest = "test_dest"
     
     try:
+        # 创建测试配置
+        config = {
+            'backup': {
+                'sources': {test_source: test_dest},
+                'file_size_limit_mb': 100,
+                'incremental_days': 0,
+                'verification_sample_size': 2
+            },
+            'log': {
+                'level': 'DEBUG'
+            }
+        }
+        
         # 清理之前的测试文件
         for dir_path in [test_source, test_dest]:
             safe_remove_dir(dir_path)
@@ -86,29 +100,8 @@ def test_backup():
         test_files = create_test_files(test_source)
         print(f"创建了 {len(test_files)} 个测试文件")
         
-        # 初始化配置
-        config = Config()
-        config.config = {
-            'backup': {
-                'sources': {
-                    test_source: test_dest
-                },
-                'exclude_patterns': {
-                    'directories': [],
-                    'files': []
-                },
-                'file_size_limit': 100,  # MB
-                'incremental_days': 0,
-                'verification_sample_size': 2
-            },
-            'log': {
-                'level': 'DEBUG',
-                'format': '%(asctime)s - %(levelname)s - %(message)s'
-            }
-        }
-        
-        logger = Logger(config.config)
-        backup_manager = Backup(config, logger)
+        logger = Logger(config['log'])
+        backup_manager = Backup(config['backup'], logger)
         
         print("\n2. 开始备份:")
         success = backup_manager.start_backup(callback=backup_progress_callback)

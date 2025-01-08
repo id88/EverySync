@@ -106,10 +106,7 @@ class DriveMonitor:
             if len(path) == 2 and path[1] == ':':
                 self.update_drives_cache()
                 path = path.upper().rstrip("\\")
-                return (
-                    path in self.drives_cache and
-                    self.drives_cache[path]['is_ready']
-                )
+                return ( path in self.drives_cache and self.drives_cache[path]['is_ready'] )
             else:
                 # 如果是普通目录路径，直接检查是否存在且可访问
                 return os.path.exists(path) and os.access(path, os.R_OK)

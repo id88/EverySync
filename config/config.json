@@ -5,20 +5,16 @@
       "E:": "G:\\E\\",
       "F:": "G:\\F\\"
     },
-    "exclude": {
-      "files": ["*.tmp", "*.log", "pagefile.sys"],
-      "directories": ["D:\\Temp", "E:\\Cache", "D:\\GoLangDir", "D:\\GOPATH"]
-    },
     "file_size_limit_mb": 100,
-    "incremental_days": 7
+    "incremental_days": 3
   },
   "log": {
     "debug_log_path": "logs\\debug.log",
     "run_log_path": "logs\\run.log",
-    "lost_files_dir": "logs\\lost",
+    "lost_log_path": "logs\\lost.log",
     "trace_enabled": false
   },
   "verification": {
-    "sample_size": 10
+    "sample_size": 3
   }
 } 
