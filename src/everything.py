@@ -141,7 +141,7 @@ class Everything:
     def search(self, query: str, max_results: int = 100, timeout: int = 30) -> List[dict]:
         """执行搜索并返回结果"""
         try:
-            logging.debug(f"开始 Everything 搜索，查询: {query}")
+            # logging.debug(f"开始 Everything 搜索，查询: {query}")
             
             # 检查 Everything 服务
             if not self.everything_dll.Everything_IsDBLoaded():
@@ -186,11 +186,11 @@ class Everything:
                         return []
                     time.sleep(0.1)
             
-            logging.debug("搜索执行完成")
+            # logging.debug("搜索执行完成")
             
             # 获取结果
             num_results = self.everything_dll.Everything_GetNumResults()
-            logging.debug(f"搜索返回结果数量: {num_results}")
+            # logging.debug(f"搜索返回结果数量: {num_results}")
             
             if num_results == 0:
                 return []
@@ -233,7 +233,7 @@ class Everything:
                     logging.warning(f"处理搜索结果 {i} 失败: {str(e)}")
                     continue
             
-            logging.debug(f"成功处理 {len(results)} 个文件")
+            logging.debug(f"Everything 成功处理 {len(results)} 个文件")
             return results
             
         except Exception as e:

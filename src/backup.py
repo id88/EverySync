@@ -78,7 +78,7 @@ class Backup:
             self.logger.log_info(f"开始备份 {source_path} 到 {dest_path}")
 
             # 获取需要备份的文件列表
-            self.logger.log_info("正在获取文件列表...")
+            # self.logger.log_info("正在获取文件列表...")
             files = self._get_files_to_backup(source_path)
             total_files = len(files)
             self.logger.log_info(f"找到 {total_files} 个文件需要处理")
@@ -179,7 +179,7 @@ class Backup:
 """)
             
             # 检查是否可以使用 Everything
-            self.logger.log_debug("检查 Everything 可用性...")
+            # self.logger.log_debug("检查 Everything 可用性...")
             everything_available = self.everything.is_available()
             self.logger.log_debug(f"Everything 可用性检查结果: {'可用' if everything_available else '不可用'}")
             
@@ -315,15 +315,47 @@ class Backup:
                 dirs.clear()
                 continue
             
+            # 检查目录是否应该被排除
+            should_skip_dir = False
+            for pattern in self.ignore_rules.rules:
+                if '*' not in pattern:  # 对于不包含通配符的规则
+                    if pattern.lower() in root.lower():
+                        should_skip_dir = True
+                        # print(f"跳过排除目录: {root} (匹配规则: {pattern})")
+                        break
+            
+            if should_skip_dir:
+                dirs.clear()  # 清空目录列表，跳过此目录的子目录
+                continue
+            
             # 处理文件
             for filename in filenames:
                 file_path = os.path.join(root, filename)
+                # print(f"正在检查 {file_path}")
                 
                 try:
                     # 基本检查
                     if len(file_path) > 240:
                         continue
-                        
+                    
+                    # 检查文件是否应该被排除
+                    should_skip_file = False
+                    for pattern in self.ignore_rules.rules:
+                        if '*' in pattern:  # 处理通配符规则
+                            import fnmatch
+                            if fnmatch.fnmatch(filename.lower(), pattern.lower()):
+                                should_skip_file = True
+                                # print(f"跳过排除文件: {file_path} (匹配规则: {pattern})")
+                                break
+                        else:  # 处理普通规则
+                            if pattern.lower() in file_path.lower():
+                                should_skip_file = True
+                                # print(f"跳过排除文件: {file_path} (匹配规则: {pattern})")
+                                break
+                    
+                    if should_skip_file:
+                        continue
+                    
                     # 获取文件信息
                     file_size = os.path.getsize(file_path)
                     modified_time = int(os.path.getmtime(file_path))
@@ -342,6 +374,7 @@ class Backup:
                         'size': file_size,
                         'modified_time': modified_time
                     })
+                    # print(f"获取到文件信息 {file_path}，{file_size}，{modified_time} ")
                     
                 except (OSError, IOError) as e:
                     self.logger.log_error(f"无法获取文件信息 {file_path}: {str(e)}")

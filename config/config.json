@@ -6,7 +6,7 @@
       "F:": "G:\\F\\"
     },
     "file_size_limit_mb": 100,
-    "incremental_days": 3
+    "incremental_days": 1
   },
   "log": {
     "debug_log_path": "logs\\debug.log",
