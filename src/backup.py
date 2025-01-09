@@ -261,48 +261,6 @@ class Backup:
             self.logger.log_error(f"检查文件更新失败: {str(e)}")
             return True
 
-    def verify_backup(self, callback: Callable = None) -> bool:
-        """
-        验证备份的完整性
-        
-        Args:
-            callback: 进度回调函数
-
-        Returns:
-            bool: 验证是否通过
-        """
-        try:
-            backup_sources = self.config.get_backup_sources()
-            sample_size = self.config.get_verification_sample_size()
-            
-            for source_drive, dest_path in backup_sources.items():
-                # 获取所有文件
-                files = self.everything.search_files_in_directory(source_drive)
-                
-                # 随机选择样本
-                import random
-                sample_files = random.sample(files, min(sample_size, len(files)))
-                
-                # 验证每个样本文件
-                for i, file_info in enumerate(sample_files):
-                    source_path = file_info['path']
-                    rel_path = os.path.relpath(source_path, source_drive)
-                    dest_file_path = os.path.join(dest_path, rel_path)
-                    
-                    # 比较文件
-                    is_same, reason = self.file_utils.compare_files(source_path, dest_file_path)
-                    if not is_same:
-                        self.logger.log_error(f"文件验证失败: {source_path} - {reason}")
-                        return False
-                    
-                    if callback:
-                        callback(i + 1, len(sample_files))
-
-            return True
-        except Exception as e:
-            self.logger.log_error(f"验证备份失败: {str(e)}")
-            return False 
-
     def _fallback_file_scan(self, source_path: str, incremental_days: int, file_size_limit: int) -> List[dict]:
         """当 Everything 搜索失败时的回退文件扫描方法"""
         self.logger.log_info("使用文件系统遍历作为回退方案")

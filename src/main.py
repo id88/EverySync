@@ -28,13 +28,6 @@ class BackupManager:
         if current == total:
             print()  # 换行
 
-    def verify_progress_callback(self, current: int, total: int):
-        """验证进度回调"""
-        progress = (current / total) * 100 if total > 0 else 0
-        print(f"\r验证进度: {progress:.2f}% ({current}/{total})", end='')
-        if current == total:
-            print()  # 换行
-
     def wait_for_drives(self, timeout: Optional[int] = None) -> bool:
         """等待所有需要的驱动器就绪"""
         backup_sources = self.config.get_backup_sources()
@@ -90,14 +83,6 @@ class BackupManager:
             if not success:
                 print("备份失败")
                 return False
-            
-            # 验证备份
-            # print("\n开始验证备份...")
-            # if self.backup.verify_backup(callback=self.verify_progress_callback):
-            #     print("备份验证通过")
-            # else:
-            #     print("备份验证失败")
-            #     return False
             
             return True
             

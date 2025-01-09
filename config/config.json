@@ -13,8 +13,5 @@
     "run_log_path": "logs\\run.log",
     "lost_log_path": "logs\\lost.log",
     "trace_enabled": false
-  },
-  "verification": {
-    "sample_size": 3
   }
 } 

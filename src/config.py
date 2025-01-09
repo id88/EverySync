@@ -9,7 +9,6 @@ class Config:
             'sources': {},  # 备份源和目标路径映射
             'file_size_limit_mb': 100,  # 文件大小限制（MB）
             'incremental_days': 0,  # 增量备份天数，0表示完整备份
-            'verification_sample_size': 2  # 验证时的样本大小
         },
         'log': {
             'level': 'DEBUG',
@@ -72,7 +71,4 @@ class Config:
     def get_incremental_days(self) -> int:
         """获取增量备份天数"""
         return self.config['backup']['incremental_days']
-
-    def get_verification_sample_size(self) -> int:
-        """获取验证样本大小"""
-        return self.config['backup']['verification_sample_size'] 
+ 
