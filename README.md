@@ -10,6 +10,8 @@ EverySync 是一个结合 Everything API 实现快速文件比对和备份的工
 - 灵活的文件排除规则配置
 - 实时显示备份进度
 - 自动处理路径过长问题
+- 集成 Everything 搜索工具，快速定位需要备份的文件
+- 智能的线程池管理，自动适应系统资源
 
 ## 备份逻辑
 
@@ -43,19 +45,26 @@ EverySync 是一个结合 Everything API 实现快速文件比对和备份的工
 ### 配置文件 (config.json)
 ```json
 {
-    "backup": {
-        "sources": {
-            "D:": "G:\\D",
-            "E:": "G:\\E"
-        },
-        "file_size_limit_mb": 100,
-        "incremental_days": 7
+  "backup": {
+    "sources": {
+      "D:\\SourcePath": "G:\\BackupPath",  // 源路径: 目标路径
+      "E:": "G:\\E\\"                      // 支持驱动器根目录
     },
-    "log": {
-        "debug_log_path": "logs\\debug.log",
-        "run_log_path": "logs\\run.log",
-        "trace_enabled": false
+    "file_size_limit_mb": 100,             // 文件大小限制（MB）
+    "incremental_days": 1,                 // 增量备份天数，0表示完整备份
+    "parallel": {
+      "enabled": true,                     // 是否启用并行处理
+      "max_workers": null,                 // 工作线程数，null表示自动设置
+      "small_file_size_mb": 10,           // 小文件阈值（MB）
+      "batch_size": 100                   // 小文件批处理数量
     }
+  },
+  "log": {
+    "debug_log_path": "logs\\debug.log",   // 调试日志路径
+    "run_log_path": "logs\\run.log",       // 运行日志路径
+    "lost_log_path": "logs\\lost.log",     // 丢失文件日志路径
+    "trace_enabled": false                 // 是否启用跟踪日志
+  }
 }
 ```
 
@@ -87,19 +96,19 @@ node_modules
 
 - debug.log: 详细的调试信息
 - run.log: 运行时的主要操作记录
+- lost.log: 丢失文件的记录
 
 ## 注意事项
 
 1. 首次运行建议进行完整备份（incremental_days = 0）
 2. 定期检查日志文件了解备份状态
 3. 路径长度超过240字符的文件将被跳过
-4. 确保 Everything 搜索工具已安装并运行
 
 ## 依赖项
 
-- Python 3.6+
-- Everything 搜索工具
-- Windows 操作系统
+- Python 3.7+
+- Everything 搜索工具（可选，推荐安装）
+- Windows 7/10/11
 
 ## 性能优化
 
@@ -221,7 +230,7 @@ Everything 通过直接读取 NTFS 的 Master File Table (MFT) 来实现快速�
    - [x] 排除规则支持
 
 2. 第二阶段：性能优化
-   - [ ] 并行文件复制
+   - [x] 并行文件复制
    - [ ] 大文件分块处理
    - [ ] 断点续传支持
    - [ ] 重复文件处理

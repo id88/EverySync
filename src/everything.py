@@ -141,8 +141,6 @@ class Everything:
     def search(self, query: str, max_results: int = 100, timeout: int = 30) -> List[dict]:
         """执行搜索并返回结果"""
         try:
-            # logging.debug(f"开始 Everything 搜索，查询: {query}")
-            
             # 检查 Everything 服务
             if not self.everything_dll.Everything_IsDBLoaded():
                 logging.error("Everything 数据库未加载")
@@ -172,25 +170,27 @@ class Everything:
             
             # 设置搜索字符串
             self.everything_dll.Everything_SetSearchW(query)
+            logging.debug(f"设置搜索字符串完成")
             
             # 执行搜索（带超时）
             start_time = time.time()
+            logging.debug(f"开始执行搜索")
             search_success = False
             while not search_success:
                 search_success = self.everything_dll.Everything_QueryW(True)
                 if not search_success:
                     error_code = self.everything_dll.Everything_GetLastError()
-                    logging.debug(f"搜索尝试失败，错误代码: {error_code}")
+                    logging.debug(f"使用 Everything 搜索失败，错误代码: {error_code}")
                     if time.time() - start_time > timeout:
                         logging.error("Everything 搜索超时")
                         return []
                     time.sleep(0.1)
             
-            # logging.debug("搜索执行完成")
+            logging.debug("搜索执行完成")
             
             # 获取结果
             num_results = self.everything_dll.Everything_GetNumResults()
-            # logging.debug(f"搜索返回结果数量: {num_results}")
+            logging.debug(f"搜索返回结果数量: {num_results}")
             
             if num_results == 0:
                 return []
@@ -205,7 +205,7 @@ class Everything:
                     
                     if path_length > 0:
                         file_path = path_buffer.value
-                        # logging.debug(f"处理搜索结果 {i}: {file_path}")
+                        # logging.trace(f"处理搜索结果 {i}: {file_path}")
                         
                         if os.path.exists(file_path):
                             if os.path.isfile(file_path):
@@ -233,7 +233,7 @@ class Everything:
                     logging.warning(f"处理搜索结果 {i} 失败: {str(e)}")
                     continue
             
-            logging.debug(f"Everything 成功处理 {len(results)} 个文件")
+            logging.debug(f"已成功处理 {len(results)} 个文件")
             return results
             
         except Exception as e:
@@ -304,7 +304,7 @@ class Everything:
             try:
                 # 重置搜索状态
                 self.everything_dll.Everything_Reset()
-                logging.debug("设置搜索字符串完成")
+                logging.debug("重置搜索状态完成")
                 
                 # 设置请求标志（最小化请求数据）
                 request_flags = self.EVERYTHING_REQUEST_FILE_NAME
@@ -313,6 +313,7 @@ class Everything:
                 
                 # 执行搜索，设置超时
                 start_time = time.time()
+                logging.debug("开始执行搜索")
                 while True:
                     if self.everything_dll.Everything_QueryW(True):
                         break

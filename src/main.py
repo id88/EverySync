@@ -15,8 +15,6 @@ class BackupManager:
     def __init__(self):
         """初始化备份管理器"""
         self.config = Config()
-        print("当前配置：")
-        print(json.dumps(self.config.config,indent=4, ensure_ascii=False))
         self.logger = Logger(self.config.config)
         self.backup = Backup(self.config, self.logger)
         self.drive_monitor = DriveMonitor()
@@ -35,7 +33,6 @@ class BackupManager:
         # 获取所有需要的驱动器
         required_drives = set()
         for source, dest in backup_sources.items():
-            print(f"将 {source} 备份到 {dest}")
             if len(source) >= 2 and source[1] == ':':
                 required_drives.add(source[:2])
             if len(dest) >= 2 and dest[1] == ':':

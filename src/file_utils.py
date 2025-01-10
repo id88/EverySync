@@ -96,6 +96,7 @@ class FileUtils:
             try:
                 # 复制文件
                 shutil.copy2(source_path, dest_path)
+                logging.info(f"文件复制成功: {source_path} -> {dest_path}")
                 
                 # 验证文件大小
                 if os.path.getsize(source_path) != os.path.getsize(dest_path):
@@ -193,3 +194,33 @@ class FileUtils:
                 return f"{size_in_bytes:.2f} {unit}"
             size_in_bytes /= 1024.0
         return f"{size_in_bytes:.2f} PB" 
+
+    def _need_update(self, source_path: str, dest_path: str) -> bool:
+        """检查文件是否需要更新"""
+        try:
+            # 如果目标文件不存在，需要更新
+            if not os.path.exists(dest_path):
+                return True
+
+            # 获取源文件和目标文件信息
+            source_info = self.get_file_info(source_path)
+            dest_info = self.get_file_info(dest_path)
+
+            if not source_info or not dest_info:
+                return True
+
+            # 比较文件大小和修改时间
+            if source_info['size'] != dest_info['size']:
+                return True
+
+            if source_info['modified_time'] > dest_info['modified_time']:
+                return True
+
+            # 可选：比较MD5
+            if source_info['md5'] != dest_info['md5']:
+                return True
+
+            return False
+        except Exception as e:
+            logging.error(f"检查文件更新失败: {str(e)}")
+            return True 

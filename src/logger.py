@@ -99,11 +99,5 @@ class Logger:
 
     def log_summary(self, total: int, success: int, skip: int, error: int):
         """记录备份统计信息"""
-        msg = f"""
-备份完成统计:
-- 总文件数: {total}
-- 成功: {success}
-- 跳过: {skip}
-- 错误: {error}
-"""
+        msg = f"备份完成统计: 总文件数: {total}, 成功: {success}, 跳过: {skip}, 错误: {error}"
         logging.info(msg) 

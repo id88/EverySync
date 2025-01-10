@@ -2,11 +2,16 @@
   "backup": {
     "sources": {
       "D:": "G:\\D\\",
-      "E:": "G:\\E\\",
-      "F:": "G:\\F\\"
+      "E:": "G:\\E\\"
     },
     "file_size_limit_mb": 100,
-    "incremental_days": 1
+    "incremental_days": 1,
+    "parallel": {
+      "enabled": true,
+      "max_workers": null,
+      "small_file_size_mb": 10,
+      "batch_size": 100
+    }
   },
   "log": {
     "debug_log_path": "logs\\debug.log",

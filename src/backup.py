@@ -10,6 +10,7 @@ from everything import Everything
 from file_utils import FileUtils
 from drive_monitor import DriveMonitor
 from ignore_rules import IgnoreRules
+from parallel_backup import ParallelBackup
 
 class Backup:
     def __init__(self, config: Config, logger: Logger):
@@ -26,6 +27,25 @@ class Backup:
         self.drive_monitor = DriveMonitor()
         self.file_utils = FileUtils()
         self.ignore_rules = IgnoreRules()
+        
+        # 检查 Everything 可用性并保存状态
+        self.everything_available = self._check_everything_available()
+        
+        self.parallel_backup = ParallelBackup(
+            config.get_parallel_config(),
+            self.file_utils,
+            logger.log_error
+        )
+
+    def _check_everything_available(self) -> bool:
+        """检查 Everything 是否可用"""
+        try:
+            is_available = self.everything.is_available()
+            self.logger.log_debug(f"Everything 可用性检查结果: {'可用' if is_available else '不可用'}")
+            return is_available
+        except Exception as e:
+            self.logger.log_error(f"检查 Everything 可用性时出错: {str(e)}")
+            return False
 
     def start_backup(self, callback: Callable = None) -> bool:
         """
@@ -68,97 +88,77 @@ class Backup:
             self.logger.log_error(f"备份过程出错: {str(e)}", exc_info=True)
             return False
 
+    def _normalize_drive_path(self, path: str) -> str:
+        """
+        标准化路径格式，对驱动器路径特殊处理
+        
+        Args:
+            path: 原始路径
+
+        Returns:
+            str: 标准化后的路径
+        """
+        if len(path) >= 2 and path[1] == ':':
+            # 如果是驱动器路径（如 "D:"），确保以反斜杠结尾
+            return os.path.normpath(path.rstrip('\\')) + '\\'
+        else:
+            # 非驱动器路径使用绝对路径
+            return os.path.abspath(path)
+
+    def _get_relative_path(self, file_path: str, source_path: str) -> str:
+        """
+        获取相对路径
+        
+        Args:
+            file_path: 文件完整路径
+            source_path: 源目录路径
+
+        Returns:
+            str: 相对路径
+        """
+        if len(source_path) == 3 and source_path[1] == ':':  # 如 "D:\"
+            # 从第四个字符开始截取，跳过驱动器部分
+            return file_path[3:]
+        else:
+            return os.path.relpath(file_path, source_path)
+
     def _backup_drive(self, source_path: str, dest_path: str, callback: Callable = None) -> None:
         """执行单个目录或驱动器的备份"""
         try:
-            # 获取完整路径
-            source_path = os.path.abspath(source_path)
+            # 标准化路径
+            source_path = self._normalize_drive_path(source_path)
             dest_path = os.path.abspath(dest_path)
             
-            self.logger.log_info(f"开始备份 {source_path} 到 {dest_path}")
+            self.logger.log_info(f"开始获取需要备份的文件列表: {source_path}")
 
             # 获取需要备份的文件列表
-            # self.logger.log_info("正在获取文件列表...")
             files = self._get_files_to_backup(source_path)
-            total_files = len(files)
-            self.logger.log_info(f"找到 {total_files} 个文件需要处理")
-
-            processed_files = 0
-            success_count = 0
-            skip_count = 0
-            error_count = 0
-
-            # 处理每个文件
-            for file_info in files:
-                source_file = file_info['path']
+            
+            if not files:
+                self.logger.log_info(f"没有文件需要备份: {source_path}")
+                return
                 
-                try:
-                    # 获取相对路径
-                    rel_path = os.path.relpath(source_file, source_path)
-                    dest_file = os.path.join(dest_path, rel_path)
+            # 添加目标路径信息
+            for file in files:
+                rel_path = self._get_relative_path(file['path'], source_path)
+                file['dest_path'] = os.path.join(dest_path, rel_path)
 
-                    # 确保路径是绝对路径
-                    source_file = os.path.abspath(source_file)
-                    dest_file = os.path.abspath(dest_file)
-
-                    # 如果是目录，创建目录但不复制
-                    if os.path.isdir(source_file):
-                        os.makedirs(dest_file, exist_ok=True)
-                        self.logger.log_debug(f"创建目录: {dest_file}")
-                        continue
-
-                    # 检查文件大小限制
-                    try:
-                        file_size_mb = os.path.getsize(source_file) / (1024 * 1024)
-                        if file_size_mb > self.config.get_file_size_limit():
-                            self.logger.log_error(f"文件超过大小限制 ({file_size_mb:.2f}MB): {source_file}")
-                            skip_count += 1
-                            continue
-                    except OSError:
-                        self.logger.log_error(f"无法获取文件大小: {source_file}")
-                        error_count += 1
-                        continue
-
-                    # 检查是否需要更新
-                    if self._need_update(source_file, dest_file):
-                        # 确保目标目录存在
-                        os.makedirs(os.path.dirname(dest_file), exist_ok=True)
-                        
-                        # 执行备份
-                        self.logger.log_backup(source_file, dest_file, "开始")
-                        if self.file_utils.safe_copy(source_file, dest_file):
-                            self.logger.log_backup(source_file, dest_file, "完成")
-                            success_count += 1
-                        else:
-                            self.logger.log_error(f"文件备份失败: {source_file}")
-                            error_count += 1
-                    else:
-                        self.logger.log_debug(f"文件无需更新: {source_file}")
-                        skip_count += 1
-
-                except PermissionError:
-                    self.logger.log_error(f"无权限访问: {source_file}")
-                    error_count += 1
-                    continue
-                except OSError as e:
-                    self.logger.log_error(f"处理文件时出错 {source_file}: {str(e)}")
-                    error_count += 1
-                    continue
-                except Exception as e:
-                    self.logger.log_error(f"处理文件时出现未知错误 {source_file}: {str(e)}")
-                    error_count += 1
-                    continue
-                finally:
-                    processed_files += 1
-                    if callback:
-                        callback(processed_files, total_files)
+            # 使用并行处理进行备份
+            parallel_config = self.config.get_parallel_config()
+            if parallel_config['enabled']:
+                self.logger.log_debug("并行备份的状态: 启用")
+                success, skip, error = self.parallel_backup.backup_files(files, callback)
+            else:
+                self.logger.log_debug("并行备份的状态: 禁用")
+                # 原有的串行处理逻辑
+                success, skip, error = self._backup_files_serial(files, callback)
 
             # 记录备份统计信息
             self.logger.log_summary(
-                total=total_files,
-                success=success_count,
-                skip=skip_count,
-                error=error_count
+                total=len(files),
+                success=success,
+                skip=skip,
+                error=error
             )
 
         except Exception as e:
@@ -171,25 +171,15 @@ class Backup:
             incremental_days = self.config.get_incremental_days()
             file_size_limit = self.config.get_file_size_limit()
             
-            self.logger.log_debug(f"""
-开始文件扫描:
-- 源路径: {source_path}
-- 增量备份天数: {incremental_days}
-- 文件大小限制: {file_size_limit} MB
-""")
-            
-            # 检查是否可以使用 Everything
-            # self.logger.log_debug("检查 Everything 可用性...")
-            everything_available = self.everything.is_available()
-            self.logger.log_debug(f"Everything 可用性检查结果: {'可用' if everything_available else '不可用'}")
-            
-            # 如果源路径是驱动器且 Everything 可用，使用 Everything 搜索
-            if (len(source_path.rstrip('\\')) == 2 and source_path[1] == ':' and everything_available):
+            # 使用已保存的 Everything 可用性状态
+            if self.everything_available:
                 self.logger.log_debug("使用 Everything API 搜索文件")
                 
                 try:
+                    # 使用标准化的路径
+                    source_path = self._normalize_drive_path(source_path)
+                    
                     # 构建基本查询
-                    source_path = os.path.normpath(source_path)
                     query_parts = [f'{source_path}']
                     
                     # 添加增量备份条件
@@ -206,12 +196,11 @@ class Backup:
                     
                     # 组合查询语句
                     query = ' '.join(query_parts)
-                    self.logger.log_debug(f"Everything 搜索查询: {query}")
+                    self.logger.log_debug(f"Everything 查询语句: {query}")
 
                     # 执行搜索
                     try:
                         files = self.everything.search(query)
-                        self.logger.log_debug(f"Everything 搜索返回 {len(files)} 个结果")
                         return files
                         
                     except Exception as e:
@@ -223,43 +212,70 @@ class Backup:
                     self.logger.log_error(f"构建 Everything 查询失败: {str(e)}", exc_info=True)
                     return self._fallback_file_scan(source_path, incremental_days, file_size_limit)
             else:
-                reason = '不是驱动器根目录' if len(source_path.rstrip('\\')) != 2 else 'Everything 不可用'
-                self.logger.log_debug(f"使用文件系统遍历 (原因: {reason})")
+                self.logger.log_debug("使用文件系统遍历 (原因: Everything 不可用)")
                 return self._fallback_file_scan(source_path, incremental_days, file_size_limit)
                 
         except Exception as e:
             self.logger.log_error(f"获取文件列表失败: {str(e)}", exc_info=True)
             return []
 
-    def _need_update(self, source_path: str, dest_path: str) -> bool:
-        """检查文件是否需要更新"""
-        try:
-            # 如果目标文件不存在，需要更新
-            if not os.path.exists(dest_path):
-                return True
+    def _backup_files_serial(self, files: List[dict], callback: Callable = None) -> tuple:
+        """串行处理文件备份"""
+        success_count = 0
+        skip_count = 0
+        error_count = 0
+        processed_files = 0
+        total_files = len(files)
 
-            # 获取源文件和目标文件信息
-            source_info = self.file_utils.get_file_info(source_path)
-            dest_info = self.file_utils.get_file_info(dest_path)
+        for file_info in files:
+            try:
+                source_file = file_info['path']
+                dest_file = file_info['dest_path']
 
-            if not source_info or not dest_info:
-                return True
+                # 如果是目录，创建目录但不复制
+                if os.path.isdir(source_file):
+                    os.makedirs(dest_file, exist_ok=True)
+                    self.logger.log_debug(f"创建目录: {dest_file}")
+                    continue
 
-            # 比较文件大小和修改时间
-            if source_info['size'] != dest_info['size']:
-                return True
+                # 检查文件大小限制
+                try:
+                    file_size_mb = os.path.getsize(source_file) / (1024 * 1024)
+                    if file_size_mb > self.config.get_file_size_limit():
+                        self.logger.log_error(f"文件超过大小限制 ({file_size_mb:.2f}MB): {source_file}")
+                        skip_count += 1
+                        continue
+                except OSError:
+                    self.logger.log_error(f"无法获取文件大小: {source_file}")
+                    error_count += 1
+                    continue
 
-            if source_info['modified_time'] > dest_info['modified_time']:
-                return True
+                # 检查是否需要更新
+                if self.file_utils._need_update(source_file, dest_file):
+                    # 确保目标目录存在
+                    os.makedirs(os.path.dirname(dest_file), exist_ok=True)
+                    
+                    # 执行备份
+                    self.logger.log_backup(source_file, dest_file, "开始")
+                    if self.file_utils.safe_copy(source_file, dest_file):
+                        self.logger.log_backup(source_file, dest_file, "完成")
+                        success_count += 1
+                    else:
+                        self.logger.log_error(f"文件备份失败: {source_file}")
+                        error_count += 1
+                else:
+                    # self.logger.log_debug(f"文件无需更新: {source_file}")
+                    skip_count += 1
 
-            # 可选：比较MD5
-            if source_info['md5'] != dest_info['md5']:
-                return True
+            except Exception as e:
+                self.logger.log_error(f"处理文件失败 {source_file}: {str(e)}")
+                error_count += 1
+            finally:
+                processed_files += 1
+                if callback:
+                    callback(processed_files, total_files)
 
-            return False
-        except Exception as e:
-            self.logger.log_error(f"检查文件更新失败: {str(e)}")
-            return True
+        return success_count, skip_count, error_count
 
     def _fallback_file_scan(self, source_path: str, incremental_days: int, file_size_limit: int) -> List[dict]:
         """当 Everything 搜索失败时的回退文件扫描方法"""
