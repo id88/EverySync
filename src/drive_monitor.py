@@ -91,27 +91,26 @@ class DriveMonitor:
         except:
             return False
 
-    def is_drive_available(self, path: str) -> bool:
-        """
-        检查指定路径是否可用
-        
-        Args:
-            path: 路径（可以是驱动器如 "G:" 或普通目录）
-
-        Returns:
-            bool: 路径是否可用
-        """
+    def is_drive_available(self, drive: str) -> bool:
+        """检查驱动器是否可用"""
         try:
-            # 如果是驱动器路径
-            if len(path) == 2 and path[1] == ':':
-                self.update_drives_cache()
-                path = path.upper().rstrip("\\")
-                return ( path in self.drives_cache and self.drives_cache[path]['is_ready'] )
+            drive = drive.upper().rstrip('\\')
+            if len(drive) >= 2 and drive[1] == ':':
+                drive = drive[:2]  # 只取驱动器部分，如 "D:"
+                
+            # 更新缓存
+            self.update_drives_cache()
+            
+            # 检查驱动器是否存在且可用
+            if drive in self.drives_cache:
+                info = self.drives_cache[drive]
+                return info.get('is_ready', False)
             else:
-                # 如果是普通目录路径，直接检查是否存在且可访问
-                return os.path.exists(path) and os.access(path, os.R_OK)
+                logging.debug(f"驱动器不存在或不可用: {drive}")
+                return False
+                
         except Exception as e:
-            logging.error(f"检查路径可用性失败 {path}: {str(e)}")
+            logging.error(f"检查驱动器可用性失败 {drive}: {str(e)}", exc_info=True)
             return False
 
     def wait_for_drive(self, drive: str, timeout: int = None, callback: Callable = None) -> bool:

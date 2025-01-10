@@ -5,18 +5,16 @@ import logging
 from file_utils import FileUtils
 
 class ParallelBackup:
-    def __init__(self, config: dict, file_utils: FileUtils, logger: Callable):
+    def __init__(self, config: dict, file_utils: FileUtils):
         """
         初始化并行备份处理器
         
         Args:
             config: 并行处理配置
             file_utils: 文件工具实例
-            logger: 日志记录函数
         """
         self.config = config
         self.file_utils = file_utils
-        self.logger = logger
         self.max_workers = config['max_workers'] or min(32, (os.cpu_count() or 1) * 4)
         self.small_file_threshold = config['small_file_size_mb'] * 1024 * 1024  # 转换为字节
         self.batch_size = config['batch_size']
@@ -74,7 +72,7 @@ class ParallelBackup:
                     if callback:
                         callback(processed_count, total_files)
                 except Exception as e:
-                    self.logger(f"并行处理任务失败: {str(e)}")
+                    logging.error(f"并行处理任务失败: {str(e)}")
                     error_count += 1
 
         return success_count, skip_count, error_count
@@ -122,5 +120,5 @@ class ParallelBackup:
             else:
                 return 0, 0, 1
         except Exception as e:
-            self.logger(f"备份文件失败 {file['path']}: {str(e)}")
+            logging.error(f"备份文件失败 {file['path']}: {str(e)}")
             return 0, 0, 1 

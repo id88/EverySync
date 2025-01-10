@@ -5,7 +5,6 @@ from typing import List, Dict, Optional, Callable
 from datetime import datetime, timedelta
 
 from config import Config
-from logger import Logger
 from everything import Everything
 from file_utils import FileUtils
 from drive_monitor import DriveMonitor
@@ -13,16 +12,14 @@ from ignore_rules import IgnoreRules
 from parallel_backup import ParallelBackup
 
 class Backup:
-    def __init__(self, config: Config, logger: Logger):
+    def __init__(self, config: Config):
         """
         初始化备份管理器
         
         Args:
             config: 配置管理器实例
-            logger: 日志管理器实例
         """
         self.config = config
-        self.logger = logger
         self.everything = Everything()
         self.drive_monitor = DriveMonitor()
         self.file_utils = FileUtils()
@@ -33,18 +30,17 @@ class Backup:
         
         self.parallel_backup = ParallelBackup(
             config.get_parallel_config(),
-            self.file_utils,
-            logger.log_error
+            self.file_utils
         )
 
     def _check_everything_available(self) -> bool:
         """检查 Everything 是否可用"""
         try:
             is_available = self.everything.is_available()
-            self.logger.log_debug(f"Everything 可用性检查结果: {'可用' if is_available else '不可用'}")
+            logging.debug(f"Everything 可用性检查结果: {'可用' if is_available else '不可用'}")
             return is_available
         except Exception as e:
-            self.logger.log_error(f"检查 Everything 可用性时出错: {str(e)}")
+            logging.error(f"检查 Everything 可用性时出错: {str(e)}")
             return False
 
     def start_backup(self, callback: Callable = None) -> bool:
@@ -65,19 +61,19 @@ class Backup:
             for source_path, dest_path in backup_sources.items():
                 # 检查源路径是否可用
                 if not self.drive_monitor.is_drive_available(source_path):
-                    self.logger.log_error(f"源路径不可用: {source_path}")
+                    logging.error(f"源路径不可用: {source_path}")
                     continue
 
                 # 确保目标目录存在
                 try:
                     os.makedirs(dest_path, exist_ok=True)
                 except Exception as e:
-                    self.logger.log_error(f"创建目标目录失败 {dest_path}: {str(e)}")
+                    logging.error(f"创建目标目录失败 {dest_path}: {str(e)}")
                     continue
 
                 # 检查目标目录是否可写
                 if not os.access(dest_path, os.W_OK):
-                    self.logger.log_error(f"目标目录无写入权限: {dest_path}")
+                    logging.error(f"目标目录无写入权限: {dest_path}")
                     continue
 
                 # 执行备份
@@ -85,7 +81,7 @@ class Backup:
 
             return True
         except Exception as e:
-            self.logger.log_error(f"备份过程出错: {str(e)}", exc_info=True)
+            logging.error(f"备份过程出错: {str(e)}", exc_info=True)
             return False
 
     def _normalize_drive_path(self, path: str) -> str:
@@ -129,13 +125,13 @@ class Backup:
             source_path = self._normalize_drive_path(source_path)
             dest_path = os.path.abspath(dest_path)
             
-            self.logger.log_info(f"开始获取需要备份的文件列表: {source_path}")
+            logging.info(f"开始获取需要备份的文件列表: {source_path}")
 
             # 获取需要备份的文件列表
             files = self._get_files_to_backup(source_path)
             
             if not files:
-                self.logger.log_info(f"没有文件需要备份: {source_path}")
+                logging.info(f"没有文件需要备份: {source_path}")
                 return
                 
             # 添加目标路径信息
@@ -146,23 +142,18 @@ class Backup:
             # 使用并行处理进行备份
             parallel_config = self.config.get_parallel_config()
             if parallel_config['enabled']:
-                self.logger.log_debug("并行备份的状态: 启用")
+                logging.debug("并行备份的状态: 启用")
                 success, skip, error = self.parallel_backup.backup_files(files, callback)
             else:
-                self.logger.log_debug("并行备份的状态: 禁用")
+                logging.debug("并行备份的状态: 禁用")
                 # 原有的串行处理逻辑
                 success, skip, error = self._backup_files_serial(files, callback)
 
             # 记录备份统计信息
-            self.logger.log_summary(
-                total=len(files),
-                success=success,
-                skip=skip,
-                error=error
-            )
+            logging.info(f"备份统计 - 总数: {len(files)}, 成功: {success}, 跳过: {skip}, 错误: {error}")
 
         except Exception as e:
-            self.logger.log_error(f"备份失败 {source_path}: {str(e)}", exc_info=True)
+            logging.error(f"备份失败 {source_path}: {str(e)}", exc_info=True)
 
     def _get_files_to_backup(self, source_path: str) -> List[dict]:
         """获取需要备份的文件列表"""
@@ -173,7 +164,7 @@ class Backup:
             
             # 使用已保存的 Everything 可用性状态
             if self.everything_available:
-                self.logger.log_debug("使用 Everything API 搜索文件")
+                logging.debug("准备使用 Everything API 搜索文件")
                 
                 try:
                     # 使用标准化的路径
@@ -196,7 +187,7 @@ class Backup:
                     
                     # 组合查询语句
                     query = ' '.join(query_parts)
-                    self.logger.log_debug(f"Everything 查询语句: {query}")
+                    logging.debug(f"Everything 查询语句: {query}")
 
                     # 执行搜索
                     try:
@@ -204,19 +195,18 @@ class Backup:
                         return files
                         
                     except Exception as e:
-                        self.logger.log_error(f"Everything 搜索执行失败: {str(e)}", exc_info=True)
-                        self.logger.log_debug("切换到备用扫描方法")
+                        logging.error(f"Everything 搜索执行失败: {str(e)}", exc_info=True)
                         return self._fallback_file_scan(source_path, incremental_days, file_size_limit)
                         
                 except Exception as e:
-                    self.logger.log_error(f"构建 Everything 查询失败: {str(e)}", exc_info=True)
+                    logging.error(f"构建 Everything 查询失败: {str(e)}", exc_info=True)
                     return self._fallback_file_scan(source_path, incremental_days, file_size_limit)
             else:
-                self.logger.log_debug("使用文件系统遍历 (原因: Everything 不可用)")
+                logging.debug("Everything 不可用，切换到文件系统遍历")
                 return self._fallback_file_scan(source_path, incremental_days, file_size_limit)
                 
         except Exception as e:
-            self.logger.log_error(f"获取文件列表失败: {str(e)}", exc_info=True)
+            logging.error(f"获取文件列表失败: {str(e)}", exc_info=True)
             return []
 
     def _backup_files_serial(self, files: List[dict], callback: Callable = None) -> tuple:
@@ -235,18 +225,18 @@ class Backup:
                 # 如果是目录，创建目录但不复制
                 if os.path.isdir(source_file):
                     os.makedirs(dest_file, exist_ok=True)
-                    self.logger.log_debug(f"创建目录: {dest_file}")
+                    logging.debug(f"创建目录: {dest_file}")
                     continue
 
                 # 检查文件大小限制
                 try:
                     file_size_mb = os.path.getsize(source_file) / (1024 * 1024)
                     if file_size_mb > self.config.get_file_size_limit():
-                        self.logger.log_error(f"文件超过大小限制 ({file_size_mb:.2f}MB): {source_file}")
+                        logging.error(f"文件超过大小限制 ({file_size_mb:.2f}MB): {source_file}")
                         skip_count += 1
                         continue
                 except OSError:
-                    self.logger.log_error(f"无法获取文件大小: {source_file}")
+                    logging.error(f"无法获取文件大小: {source_file}")
                     error_count += 1
                     continue
 
@@ -256,19 +246,19 @@ class Backup:
                     os.makedirs(os.path.dirname(dest_file), exist_ok=True)
                     
                     # 执行备份
-                    self.logger.log_backup(source_file, dest_file, "开始")
+                    logging.info(f"备份开始: {source_file} -> {dest_file}")
                     if self.file_utils.safe_copy(source_file, dest_file):
-                        self.logger.log_backup(source_file, dest_file, "完成")
+                        logging.info(f"备份完成: {source_file} -> {dest_file}")
                         success_count += 1
                     else:
-                        self.logger.log_error(f"文件备份失败: {source_file}")
+                        logging.error(f"文件备份失败: {source_file}")
                         error_count += 1
                 else:
-                    # self.logger.log_debug(f"文件无需更新: {source_file}")
+                    # logging.debug(f"文件无需更新: {source_file}")
                     skip_count += 1
 
             except Exception as e:
-                self.logger.log_error(f"处理文件失败 {source_file}: {str(e)}")
+                logging.error(f"处理文件失败 {source_file}: {str(e)}")
                 error_count += 1
             finally:
                 processed_files += 1
@@ -279,13 +269,13 @@ class Backup:
 
     def _fallback_file_scan(self, source_path: str, incremental_days: int, file_size_limit: int) -> List[dict]:
         """当 Everything 搜索失败时的回退文件扫描方法"""
-        self.logger.log_info("使用文件系统遍历作为回退方案")
+        logging.info("正在使用文件系统遍历")
         files = []
         
         for root, dirs, filenames in os.walk(source_path):
             # 检查路径长度
             if len(root) > 240:
-                self.logger.log_warning(f"跳过路径过长的目录: {root}")
+                logging.warning(f"跳过路径过长的目录: {root}")
                 dirs.clear()
                 continue
             
@@ -351,7 +341,7 @@ class Backup:
                     # print(f"获取到文件信息 {file_path}，{file_size}，{modified_time} ")
                     
                 except (OSError, IOError) as e:
-                    self.logger.log_error(f"无法获取文件信息 {file_path}: {str(e)}")
+                    logging.error(f"无法获取文件信息 {file_path}: {str(e)}")
                     continue
                     
         return files 

@@ -342,9 +342,11 @@ class Everything:
                 self.everything_dll.Everything_Reset()
                 logging.debug("Everything 搜索状态已重置")
             except:
+                logging.debug("Everything 搜索状态重置失败")
                 pass
 
     def __del__(self):
         """清理 Everything SDK 资源"""
         if hasattr(self, 'everything_dll'):
             self.everything_dll.Everything_Reset() 
+            logging.debug("Everything 搜索状态已重置")

@@ -2,11 +2,8 @@ EverySync/
 ├── config/
 │   ├── config.json          # 主配置文件
 │   └── ignore.txt           # 忽略规则配置
-├── logs/
-│   ├── debug.log           # 调试日志
-│   ├── run.log             # 运行日志
-│   └── lost.log            # 丢失文件日志
-├── sdk/
+├── logs/                    # 日志目录
+├── sdk/                    
 │   └── dll/
 │       ├── Everything32.dll # Everything SDK 32位
 │       └── Everything64.dll # Everything SDK 64位
@@ -18,7 +15,6 @@ EverySync/
 │   ├── everything.py       # Everything 接口
 │   ├── file_utils.py       # 文件工具类
 │   ├── ignore_rules.py     # 忽略规则处理
-│   ├── logger.py           # 日志管理
 │   ├── parallel_backup.py  # 并行备份处理
 │   └── tests/              # 单元测试
 └── README.md              # 项目说明

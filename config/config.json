@@ -1,7 +1,7 @@
 {
   "backup": {
     "sources": {
-      "D:": "G:\\D\\",
+      "D:\\PythonProject\\EverySync": "G:\\D\\",
       "E:": "G:\\E\\"
     },
     "file_size_limit_mb": 100,
@@ -14,9 +14,7 @@
     }
   },
   "log": {
-    "debug_log_path": "logs\\debug.log",
-    "run_log_path": "logs\\run.log",
-    "lost_log_path": "logs\\lost.log",
-    "trace_enabled": false
+    "level": "DEBUG",
+    "format": "%(asctime)s - %(levelname)s - %(message)s"
   }
 } 
